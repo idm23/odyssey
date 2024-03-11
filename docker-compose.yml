@@ -1,0 +1,54 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:13
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: odydb
+      POSTGRES_USER: odyadmin
+      POSTGRES_PASSWORD: odyadmin
+    networks:
+      - backend-network
+  postgrest:
+    image: postgrest/postgrest
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config:/etc/postgrest:ro
+    environment:
+      PGRST_DB_URI: "postgres://odyadmin:odyadmin@db:5432/odydb"
+      PGRST_DB_SCHEMA: "public"
+      PGRST_DB_ANON_ROLE: "web_anon"
+    networks:
+      - backend-network
+  web:
+    build: ./ody-backend
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DB_NAME: odydb
+      DB_USER: odyadmin
+      DB_PASS: odyadmin
+      DB_SERVICE: db
+      DB_PORT: 5432
+    depends_on:
+      - db
+    networks:
+      - backend-network
+  frontend:
+    build: ./ody-frontend
+    ports:
+      - "3000:80"
+
+networks:
+  backend-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
